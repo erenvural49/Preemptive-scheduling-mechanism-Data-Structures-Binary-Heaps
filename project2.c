@@ -13,9 +13,9 @@ struct BHNode {
     double priorityValue;
     int totalWaitingTime;
     
-    int degree;                 // Dügümün derecesi (çocuk sayisi)
-    struct BHNode *parent;      // Üst dügüm
-    struct BHNode *child;       // En soldaki çocuk
+    int degree;                 // D?g?m?n derecesi (?ocuk sayisi)
+    struct BHNode *parent;      // ?st d?g?m
+    struct BHNode *child;       // En soldaki ?ocuk
     struct BHNode *sibling;     // Sagdaki kardes
 };
 
@@ -93,10 +93,10 @@ BHNode *heapMerge(BinomialHeap *heap1, BinomialHeap *heap2)
 
 
 BHNode *heapUnion(BinomialHeap *original, BinomialHeap *uni) {
-    // 1. Adim: Kök listelerini derecelerine göre sirali tek bir liste yap (Sende var olan heapMerge)
+    // 1. Adim: K?k listelerini derecelerine g?re sirali tek bir liste yap (Sende var olan heapMerge)
     BHNode *new_head = heapMerge(original, uni);
     
-    // Orijinal heap'lerin içini bosaltiyoruz
+    // Orijinal heap'lerin i?ini bosaltiyoruz
     original->head = NULL;
     uni->head = NULL;
 
@@ -114,19 +114,19 @@ BHNode *heapUnion(BinomialHeap *original, BinomialHeap *uni) {
             x = r;
         } 
         else {
-            // Durum 2: Iki tane ayni dereceli agaç var, birlestirme (Link) zamani!
+            // Durum 2: Iki tane ayni dereceli aga? var, birlestirme (Link) zamani!
             if (isPrior(x, r)) {
-                // x daha öncelikli (priorityValue daha küçük veya varis zamani daha eski)
+                // x daha ?ncelikli (priorityValue daha k???k veya varis zamani daha eski)
                 x->sibling = r->sibling;
-                get_a_BT_k(r, x); // r'i x'un çocugu yap
+                get_a_BT_k(r, x); // r'i x'un ?ocugu yap
             } else {
-                // r daha öncelikli
+                // r daha ?ncelikli
                 if (q == NULL) {
                     new_head = r;
                 } else {
                     q->sibling = r;
                 }
-                get_a_BT_k(x, r); // x'u r'in çocugu yap
+                get_a_BT_k(x, r); // x'u r'in ?ocugu yap
                 x = r;
             }
         }
@@ -165,20 +165,22 @@ BinomialHeap *heapInit(void) {
     if (heap) heap->head = NULL;
     return heap;
 }
-
-int isPrior(BHNode* node1,BHNode* node2){
-	if(node1->newExecutionTime == node2->newExecutionTime){
-		if(node1->firstTimeArrival < node2->firstTimeArrival)
-			return 1;
-	}
-	else{
-		if(node1->priorityValue < node2->priorityValue){
-			return 1;
-		}
-	}
-	return 0;
+int isPrior(BHNode* node1, BHNode* node2) {
+    
+    if (node1->priorityValue < node2->priorityValue) {
+        return 1;
+    } 
+    else if (node1->priorityValue > node2->priorityValue) {
+        return 0;
+    }
+   
+    else {
+        if (node1->firstTimeArrival < node2->firstTimeArrival) {
+            return 1;
+        }
+        return 0;
+    }
 }
-
 void heapInsert(BinomialHeap *heap1, int PID, int initial_et, int arrival, int e_max) {
     BHNode* node1 = nodeInit(PID, initial_et, arrival, e_max);
     if (node1 == NULL) 
@@ -229,11 +231,11 @@ BHNode* heapDeleteMin(BinomialHeap* heap){
 	if (heap == NULL || heap->head == NULL) {
         return NULL;
     }
-    BHNode *minNode = heap->head; // Su ana kadar bulunan en öncelikli
-    BHNode *minPrev = NULL;       // minNode'un bir öncesi
+    BHNode *minNode = heap->head; // Su ana kadar bulunan en ?ncelikli
+    BHNode *minPrev = NULL;       // minNode'un bir ?ncesi
     
     BHNode *curr = heap->head;    // Listeyi tarayan
-    BHNode *prev = NULL;          // curr'un bir öncesi
+    BHNode *prev = NULL;          // curr'un bir ?ncesi
     
     while(curr!=NULL){
     	if(isPrior(curr,minNode)){
@@ -246,75 +248,116 @@ BHNode* heapDeleteMin(BinomialHeap* heap){
 	heapRemove(heap, minNode, minPrev);
     return minNode;
 }
-int main(void){
+int printHeapProcesses(BHNode *node, int mode) {
 	
-	// 1. Heap ve Degisken Baslatma
+    if (node == NULL) return;
+    int len=0;
+    if (mode == 0) // Sadece ID'leri yazdir (P1, P2...)
+        len += printf("P%d ", node->processId);
+    else // ID ve Priority degerlerini yazdir (P1: 3.00...)
+        printf("P%d: %.3f ", node->processId, node->priorityValue);
+	
+    len += printHeapProcesses(node->child, mode);
+    len += printHeapProcesses(node->sibling, mode);
+    
+    return len;
+    
+    
+}
+
+// CPU çalisirken heap'te bekleyenlerin süresini artirmak için
+void updateWaitingTimes(BHNode *node) {
+    if (node == NULL) return;
+    node->totalWaitingTime++;
+    updateWaitingTimes(node->child);
+    updateWaitingTimes(node->sibling);
+}
+int main(void) {
     BinomialHeap *heap = heapInit();
     int currentTime = 0;
     int completedCount = 0;
-    int totalProcesses = 3; // Test için 3 tane diyelim
-    int e_max = 3;        // Örnek max süre
-    int q=1;
-    // Test verileri (Dosyadan okuma yerine simdilik elinle gir)
-    int IDs[] = {1, 2, 3};
-    int arrivalTime[] = {0, 2, 3};
-    int initial_et[] = {3, 1, 2};
-    int isAdded[] = {0, 0, 0};
+    int totalProcesses = 6;
+    int e_max = 4; 
+    int q = 2;
+    int i;
+   
+    int IDs[] = {1, 2, 3,4,5,6};
+    int arrivalTime[] = {0, 2, 3,5,6,7};
+    int initial_et[] = {3, 1, 2,2,2,4};
+    int isAdded[] = {0, 0, 0,0,0,0};
+    
+    // AWT hesaplamak için tüm biten süreçlerin bekleme sürelerini burada toplayacagiz
+    int finalTotalWaitTime = 0;
 
-    printf("Simulasyon Basliyor (q=1)...\n\n");
-	
-	
-	int i;
-	while (completedCount < totalProcesses || heap->head != NULL) {
+    printf("Selected quantum value q: %d\n\n", q);
+    printf("%-10s %-25s %-30s\n", "Time", "Processes in BH", "Priority value of processes in BH");
+
+    while (completedCount < totalProcesses || heap->head != NULL) {
         
-        // A. Yeni Gelen Isleri Kontrol Et
         for (i = 0; i < totalProcesses; i++) {
             if (arrivalTime[i] == currentTime && isAdded[i] == 0) {
-                heapInsert(heap,IDs[0],initial_et[0],arrivalTime[0],e_max);
+                
+                double p = calculatePriority(initial_et[i], arrivalTime[i], e_max, 1);
+                heapInsert(heap, IDs[i], initial_et[i], arrivalTime[i], e_max);
                 isAdded[i] = 1;
-                printf("[T=%d] Process %d sisteme eklendi.\n", currentTime, IDs[i]);
             }
         }
-        // 2. CPU Isleme
+        
+        printf("%-10d ", currentTime);
+        
+        if (heap->head == NULL) {
+            printf("%-25s %-30s\n", "-", "-");
+        } else {
+            int printedChars = printHeapProcesses(heap->head, 0); 
+            
+            
+    
+            int remainingSpace = 26 - printedChars;
+            if (remainingSpace < 0) remainingSpace = 0;
+
+    
+            printf("%*s", remainingSpace, "");
+    
+            printHeapProcesses(heap->head, 1); // P1: 3.00...
+            printf("\n");
+        }
+
+        // 3. CPU Islemi
         if (heap->head != NULL) {
             BHNode* current = heapDeleteMin(heap);
-            printf("[T=%d] Calisiyor: P%d | Kalan ET: %d | Oncelik: %.2f\n", 
-                    currentTime, current->processId, current->newExecutionTime, current->priorityValue);
             
+            
+            updateWaitingTimes(heap->head);
+
             current->newExecutionTime--;
-            
+
             if (current->newExecutionTime != 0) {
-                // Önceligi güncelle ve geri ekle
+                
                 current->priorityValue = calculatePriority(current->newExecutionTime, current->firstTimeArrival, e_max, 0);
                 
                 BinomialHeap *tempHeap = heapInit();
-                current->child = NULL;
-                current->sibling = NULL;
-                current->parent = NULL;
+                current->child = current->sibling = current->parent = NULL;
                 current->degree = 0;
                 tempHeap->head = current;
-                
                 heap->head = heapUnion(heap, tempHeap);
-                free(tempHeap);   
+                free(tempHeap);
             } else {
-                printf("[T=%d] Process %d TAMAMLANDI!\n", currentTime + 1, current->processId);
+                
+                finalTotalWaitTime += current->totalWaitingTime;
                 completedCount++;
                 free(current);
             }
-        } else {
-            // Heap bos ama daha gelmemis süreçler var mi?
-            if (completedCount < totalProcesses) {
-                printf("[T=%d] CPU Bos (Idle)...\n", currentTime);
-            }
         }
 
-        // --- EN KRITIK EKSIK BURASIYDI ---
-        currentTime++; 
+        currentTime++;
+        if (currentTime > 100) break; 
+    }
 
-        // Test amaçli: Çok uzun sürerse durdur
-        if (currentTime > 100) break;
-	}
-	
-	return 0;
+    
+    double awt = (double)finalTotalWaitTime / totalProcesses;
+    printf("------------------------------------------------------------------------------------\n");
+    printf("Average Waiting Time (AWT): %.2f\n", awt);
+
+    return 0;
 }
 
