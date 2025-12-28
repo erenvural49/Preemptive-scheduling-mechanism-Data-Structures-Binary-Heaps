@@ -13,10 +13,10 @@ struct BHNode {
     double priorityValue;
     int totalWaitingTime;
     
-    int degree;                 // Dügümün derecesi (çocuk sayisi)
-    struct BHNode *parent;      // Üst dügüm
-    struct BHNode *child;       // En soldaki çocuk
-    struct BHNode *sibling;     // Sagdaki kardes
+    int degree;               
+    struct BHNode *parent;      
+    struct BHNode *child;      
+    struct BHNode *sibling;    
 };
 
 typedef struct BHNode BHNode;
@@ -42,12 +42,55 @@ double calculatePriority(int current_et,int t_arr,int e_max,int isFirstInsertion
 	return priorityValue;
 	
 }
+//parent will be root
 void get_a_BT_k(BHNode *child, BHNode *parent) {
     child->parent = parent;
     child->sibling = parent->child;
     parent->child = child;
     parent->degree++;
 }
+
+
+BHNode *heapMerge(BinomialHeap *heap1, BinomialHeap *heap2)
+{
+    BHNode *head;
+    BHNode *tail;
+    BHNode *h1It;
+    BHNode *h2It;
+
+    if (heap1->head == NULL)
+        return heap2->head;
+    if (heap2->head == NULL)
+        return heap1->head;
+
+    h1It = heap1->head;
+    h2It = heap2->head;
+
+    if (h1It->degree <= h2It->degree) {
+        head = h1It;
+        h1It = h1It->sibling;
+    } else {
+        head = h2It;
+        h2It = h2It->sibling;
+    }
+
+    tail = head;
+
+    while (h1It != NULL && h2It != NULL) {
+        if (h1It->degree <= h2It->degree) {
+            tail->sibling = h1It;
+            h1It = h1It->sibling;
+        } else {
+            tail->sibling = h2It;
+            h2It = h2It->sibling;
+        }
+        tail = tail->sibling;
+    }
+
+    tail->sibling = (h1It != NULL) ? h1It : h2It;
+    return head;
+}
+
 
 BHNode *heapUnion(BinomialHeap *original, BinomialHeap *uni) {
     // 1. Adim: Kök listelerini derecelerine göre sirali tek bir liste yap (Sende var olan heapMerge)
@@ -67,23 +110,23 @@ BHNode *heapUnion(BinomialHeap *original, BinomialHeap *uni) {
         
         if (x->degree != r->degree || 
             (r->sibling != NULL && r->sibling->degree == x->degree)) {
-            prev = x;
+            q = x;
             x = r;
         } 
         else {
-            // Durum 2: Iki tane ayni dereceli agaç var, birlestirme (Link) zamani!
+            
             if (isPrior(x, r)) {
-                // x daha öncelikli (priorityValue daha küçük veya varis zamani daha eski)
+                
                 x->sibling = r->sibling;
-                get_a_BT_k(r, x); // r'i x'un çocugu yap
+                get_a_BT_k(r, x); 
             } else {
-                // r daha öncelikli
+                
                 if (q == NULL) {
                     new_head = r;
                 } else {
                     q->sibling = r;
                 }
-                get_a_BT_k(x, r); // x'u r'in çocugu yap
+                get_a_BT_k(x, r); 
                 x = r;
             }
         }
@@ -124,55 +167,151 @@ BinomialHeap *heapInit(void) {
 }
 
 int isPrior(BHNode* node1,BHNode* node2){
-	if(node1->newExecutionTime == node2->newExecutionTime){
-		if(node1->firstTimeArrival < node2->firstTimeArrival)
-			return 1;
-	}
-	else{
-		if(node1->priorityValue < node2->priorityValue){
-			return 1;
-		}
-	}
-	return 0;
+	
+	if (node1->priorityValue < node2->priorityValue) {
+        return 1;
+    } 
+    else if (node1->priorityValue > node2->priorityValue) {
+        return 0;
+    }
+    //if iet is equal then priorityValues equal
+    else {
+        // O zaman varis zamani (arrival time) küçük olan kazanir.
+        if (node1->firstTimeArrival < node2->firstTimeArrival) {
+            return 1;
+        }
+        return 0;
+    }
 }
 
-BHNode *heapMerge(BinomialHeap *heap1, BinomialHeap *heap2)
+void heapInsert(BinomialHeap *heap1, int PID, int initial_et, int arrival, int e_max) {
+    BHNode* node1 = nodeInit(PID, initial_et, arrival, e_max);
+    if (node1 == NULL) 
+	return;
+
+    BinomialHeap* tempHeap = heapInit();
+    if (tempHeap == NULL) 
+	return;
+
+    tempHeap->head = node1;
+    heap1->head = heapUnion(heap1, tempHeap);
+    free(tempHeap);
+}
+
+void heapRemove(BinomialHeap *heap, BHNode *node, BHNode *before)
 {
-    BHNode *head;
-    BHNode *tail;
-    BHNode *h1It;
-    BHNode *h2It;
+    BinomialHeap *temp;
+    BHNode *child;
+    BHNode *new_head;
+    BHNode *next;
 
-    if (heap1->head == NULL)
-        return heap2->head;
-    if (heap2->head == NULL)
-        return heap1->head;
+    if (node == heap->head)
+        heap->head = node->sibling;
+    else if (before != NULL)
+        before->sibling = node->sibling;
 
-    h1It = heap1->head;
-    h2It = heap2->head;
+    new_head = NULL;
+    child = node->child;
 
-    if (h1It->degree <= h2It->degree) {
-        head = h1It;
-        h1It = h1It->sibling;
-    } else {
-        head = h2It;
-        h2It = h2It->sibling;
+    while (child != NULL) {
+        next = child->sibling;
+        child->sibling = new_head;
+        child->parent = NULL;
+        new_head = child;
+        child = next;
     }
 
-    tail = head;
+    temp = heapInit();
+    if (temp == NULL)
+        return;
 
-    while (h1It != NULL && h2It != NULL) {
-        if (h1It->degree <= h2It->degree) {
-            tail->sibling = h1It;
-            h1It = h1It->sibling;
-        } else {
-            tail->sibling = h2It;
-            h2It = h2It->sibling;
+    temp->head = new_head;
+    heap->head = heapUnion(heap, temp);
+    free(temp);
+}
+BHNode* heapDeleteMin(BinomialHeap* heap){
+	
+	if (heap == NULL || heap->head == NULL) {
+        return NULL;
+    }
+    BHNode *minNode = heap->head; 
+    BHNode *minPrev = NULL;       
+    BHNode *curr = heap->head;    
+    BHNode *prev = NULL;          
+    
+    while(curr!=NULL){
+    	if(isPrior(curr,minNode)){
+    		minNode=curr;
+    		minPrev=prev;
+		}
+    	prev=curr;
+    	curr=curr->sibling;
+	}
+	heapRemove(heap, minNode, minPrev);
+    return minNode;
+}
+int main(void){
+	
+	
+    BinomialHeap *heap = heapInit();
+    int currentTime = 0;
+    int completedCount = 0;
+    int totalProcesses = 3;
+    int e_max = 3;        
+    int q=1;
+   
+    int IDs[] = {1, 2, 3};
+    int arrivalTime[] = {0, 2, 3};
+    int initial_et[] = {3, 1, 2};
+    int isAdded[] = {0, 0, 0};
+
+    printf("Simulasyon Basliyor (q=1)...\n\n");
+	
+	
+	int i;
+	while (completedCount < totalProcesses || heap->head != NULL) {  
+	 
+        for (i = 0; i < totalProcesses; i++) {
+            if (arrivalTime[i] == currentTime && isAdded[i] == 0) {
+                heapInsert(heap,IDs[i],initial_et[i],arrivalTime[i],e_max);
+                isAdded[i] = 1;
+                printf("[T=%d] Process %d sisteme eklendi.\n", currentTime, IDs[i]);
+            }
         }
-        tail = tail->sibling;
-    }
+        
+    if(heap->head!=NULL){
+        BHNode* current=heapDeleteMin(heap);
+        current->newExecutionTime--;
+		
+		if(current->newExecutionTime!=0){
+			current->priorityValue=calculatePriority(current->newExecutionTime,current->firstTimeArrival,e_max,0);
+			
+			BinomialHeap *tempHeap = heapInit();
+                current->child = NULL;
+                current->sibling = NULL;
+                current->parent = NULL;
+                current->degree = 0;
+                tempHeap->head = current;
+                heap->head = heapUnion(heap, tempHeap);
+                free(tempHeap);   
+	    }
+		else{
+			completedCount++;
+			free(current);
+		}
+		
+	} else {
+            if (completedCount < totalProcesses) {
+                printf("[T=%d] CPU Bos (Idle)...\n", currentTime);
+            }
+        }
+	
+	currentTime++; 
 
-    tail->sibling = (h1It != NULL) ? h1It : h2It;
-    return head;
+        // Test amaçli: Çok uzun sürerse durdur
+        if (currentTime > 100) break;
+	}
+	
+return 0;
 }
 
