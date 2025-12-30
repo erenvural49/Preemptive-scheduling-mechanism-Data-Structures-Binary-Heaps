@@ -119,6 +119,7 @@ BHNode *heapUnion(BinomialHeap *original, BinomialHeap *uni) {
                 // x daha ?ncelikli (priorityValue daha k???k veya varis zamani daha eski)
                 x->sibling = r->sibling;
                 get_a_BT_k(r, x); // r'i x'un ?ocugu yap
+                //2 processin hangisi daha priority öncelikli onu yukarý alma islemi
             } else {
                 // r daha ?ncelikli
                 if (q == NULL) {
@@ -268,7 +269,8 @@ void updateWaitingTimes(BHNode *node) {
     node->totalWaitingTime++;
     updateWaitingTimes(node->child);
     updateWaitingTimes(node->sibling);
-}// ASIL MESELE: Simülasyon Fonksiyonu
+}
+
 double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], int initial_et[], int e_max, int printTable) {
     BinomialHeap *heap = heapInit();
     int currentTime = 0, completedCount = 0, totalWaitTime = 0;
@@ -291,7 +293,7 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
             }
         }
         
-        // 3. Kuantum Kontrolü (Preemption Yok: Islem bitmeden veya q dolmadan inmez)
+        // cpudaki process is continuing but q=islemin cpuda kaldigi sure so BH'e tekrar send
         if (cpuProcess != NULL && quantumTimer == q) {
             cpuProcess->priorityValue = calculatePriority(cpuProcess->newExecutionTime, cpuProcess->firstTimeArrival, e_max, 0);
             BinomialHeap *temp = heapInit();
@@ -312,25 +314,16 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
         
         // 4. EKRANA YAZDIRMA MANTIGI (Istedigin T=5 Düzenlemesi)
         if (printTable) {
-            printf("%-10d ", currentTime);
-            
+                      
             if (cpuProcess == NULL) {
+            	printf("%-10d ", currentTime);
                 printf("%-25s %-30s\n", "-", "-");
             } //<= olunca p1 is process olur dedim ama q=1 no ?
             else if (quantumTimer > 0 && quantumTimer < q) {
-                // ARA SANIYE: Kuantum devam ediyor, heap hesaplanmaz
-                int len = 0;
-                // Mevcut çalisan ve heap'tekiler
-                len += printf("P%d ", cpuProcess->processId);
-                len += printHeapProcesses(heap->head, 0);
-
-                int space = 26 - len;
-                if (space < 0) space = 0;
-                printf("%*s", space, "");
-
-                printf("P%d is in the cpu\n", cpuProcess->processId);
+                //I chosed to blank here because process in the cpu will continue no print in the output.
             } 
             else {
+            	printf("%-10d ", currentTime);
                 // KARAR ANI VEYA BASLANGIÇ: Tam tabloyu yazdir
                 int len = 0;
                 // Mevcut çalisan ve heap'tekiler
@@ -345,13 +338,14 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
                 printf("P%d: %.3f ", cpuProcess->processId, cpuProcess->priorityValue);
                 printHeapProcesses(heap->head, 1);
                 printf("\n");
-            }
+            }  
         }
         // 5. Zaman Ilerlemesi
         if (cpuProcess != NULL) {
             updateWaitingTimes(heap->head);
             cpuProcess->newExecutionTime--;
             quantumTimer++;
+            
             if (cpuProcess->newExecutionTime == 0) {
                 totalWaitTime += cpuProcess->totalWaitingTime;
                 completedCount++;
@@ -369,24 +363,24 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
     
     double awt = (double)totalWaitTime / totalProcesses;
     printf("Average Waiting Time (AWT): %.2f\n", awt);
-    printf("------------------------------------------------------------------------------------\n");
+    printf("\n");
     free(heap);
     return awt;
 }
 
 int main(void) {
-    int IDs[] = {1, 2, 3};
-    int arrivalTime[] = {0, 1, 4};
-    int initial_et[] = {5, 3, 1};
-    int totalProcesses = 3;
-    int e_max = 5;
+    int IDs[] = {1, 2, 3,4,5,6};
+    int arrivalTime[] = {0, 2, 3,5,6,7};
+    int initial_et[] = {3, 1,2,2,2,4};
+    int totalProcesses = 6;
+    int e_max = 4;
 
     double minAWT = 10000, currentAWT;
     int bestQ = 1;
     int q;
     // q=1'den q=5'e kadar tablolu, sonrasinda sadece sonuç odakli
-    for (q= 1; q <= 10; q++) {
-        int showTable = (q <= 10); 
+    for (q= 1; q <= 5; q++) {
+        int showTable = (q <= 5); 
         currentAWT = runSimulation(q, totalProcesses, IDs, arrivalTime, initial_et, e_max, showTable);
         if (currentAWT < minAWT) {
             minAWT = currentAWT;
