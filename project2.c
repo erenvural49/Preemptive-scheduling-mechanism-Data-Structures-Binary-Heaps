@@ -13,10 +13,10 @@ struct BHNode {
     double priorityValue;
     int totalWaitingTime;
     
-    int degree;                 // D?g?m?n derecesi (?ocuk sayisi)
-    struct BHNode *parent;      // ?st d?g?m
-    struct BHNode *child;       // En soldaki ?ocuk
-    struct BHNode *sibling;     // Sagdaki kardes
+    int degree;                 
+    struct BHNode *parent;      
+    struct BHNode *child;       
+    struct BHNode *sibling;     
 };
 
 typedef struct BHNode BHNode;
@@ -69,7 +69,8 @@ BHNode *heapMerge(BinomialHeap *heap1, BinomialHeap *heap2)
     if (h1It->degree <= h2It->degree) {
         head = h1It;
         h1It = h1It->sibling;
-    } else {
+    } 
+	else {
         head = h2It;
         h2It = h2It->sibling;
     }
@@ -80,7 +81,8 @@ BHNode *heapMerge(BinomialHeap *heap1, BinomialHeap *heap2)
         if (h1It->degree <= h2It->degree) {
             tail->sibling = h1It;
             h1It = h1It->sibling;
-        } else {
+        } 
+		else {
             tail->sibling = h2It;
             h2It = h2It->sibling;
         }
@@ -114,20 +116,21 @@ BHNode *heapUnion(BinomialHeap *original, BinomialHeap *uni) {
             x = r;
         } 
         else {
-            // Durum 2: Iki tane ayni dereceli aga? var, birlestirme (Link) zamani!
+            
             if (isPrior(x, r)) {
-                // x daha ?ncelikli (priorityValue daha k???k veya varis zamani daha eski)
                 x->sibling = r->sibling;
-                get_a_BT_k(r, x); // r'i x'un ?ocugu yap
-                //2 processin hangisi daha priority öncelikli onu yukarý alma islemi
-            } else {
-                // r daha ?ncelikli
+                get_a_BT_k(r, x); 
+                
+            } 
+			else{
+                
                 if (q == NULL) {
                     new_head = r;
-                } else {
+                } 
+				else {
                     q->sibling = r;
-                }
-                get_a_BT_k(x, r); // x'u r'in ?ocugu yap
+					}
+                get_a_BT_k(x, r); 
                 x = r;
             }
         }
@@ -232,11 +235,11 @@ BHNode* heapDeleteMin(BinomialHeap* heap){
 	if (heap == NULL || heap->head == NULL) {
         return NULL;
     }
-    BHNode *minNode = heap->head; // Su ana kadar bulunan en ?ncelikli
-    BHNode *minPrev = NULL;       // minNode'un bir ?ncesi
+    BHNode *minNode = heap->head;
+    BHNode *minPrev = NULL;       
     
-    BHNode *curr = heap->head;    // Listeyi tarayan
-    BHNode *prev = NULL;          // curr'un bir ?ncesi
+    BHNode *curr = heap->head;
+    BHNode *prev = NULL;
     
     while(curr!=NULL){
     	if(isPrior(curr,minNode)){
@@ -253,17 +256,18 @@ int printHeapProcesses(BHNode *node, int mode) {
 	
     if (node == NULL) return;
     int len=0;
-    if (mode == 0) // Sadece ID'leri yazdir (P1, P2...)
+    if (mode == 0){ //print middle part
         len += printf("P%d ", node->processId);
-    else // ID ve Priority degerlerini yazdir (P1: 3.00...)
+    }
+    else{ //print right part
         printf("P%d: %.3f ", node->processId, node->priorityValue);
+    }
 	
     len += printHeapProcesses(node->child, mode);
     len += printHeapProcesses(node->sibling, mode);
     
     return len;
 }
-// CPU çalisirken heap'te bekleyenlerin süresini artirmak için
 void updateWaitingTimes(BHNode *node) {
     if (node == NULL) return;
     node->totalWaitingTime++;
@@ -271,12 +275,13 @@ void updateWaitingTimes(BHNode *node) {
     updateWaitingTimes(node->sibling);
 }
 
-double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], int initial_et[], int e_max, int printTable) {
+double DifferentQAnalysis(int q, int totalProcesses, int IDs[], int arrivalTime[], int initial_et[], int e_max, int printTable) {
     BinomialHeap *heap = heapInit();
     int currentTime = 0, completedCount = 0, totalWaitTime = 0;
     int isAdded[10] = {0};
     BHNode* cpuProcess = NULL;
-    int quantumTimer = 0;
+    int timeInCpu = 0;
+    int i;
 
     if (printTable) {
         printf("\nSelected quantum value q: %d\n", q);
@@ -284,8 +289,6 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
     }
 
     while (completedCount < totalProcesses || heap->head != NULL || cpuProcess != NULL) {
-        // 1. Yeni Gelenler
-        int i;
         for (i = 0; i < totalProcesses; i++) {
             if (arrivalTime[i] == currentTime && isAdded[i] == 0) {
                 heapInsert(heap, IDs[i], initial_et[i], arrivalTime[i], e_max);
@@ -293,8 +296,8 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
             }
         }
         
-        // cpudaki process is continuing but q=islemin cpuda kaldigi sure so BH'e tekrar send
-        if (cpuProcess != NULL && quantumTimer == q) {
+        //  Process in the cpu continuing but q is expired process will send to the BH again.
+        if (cpuProcess != NULL && timeInCpu == q) {
             cpuProcess->priorityValue = calculatePriority(cpuProcess->newExecutionTime, cpuProcess->firstTimeArrival, e_max, 0);
             BinomialHeap *temp = heapInit();
             cpuProcess->child = cpuProcess->sibling = cpuProcess->parent = NULL;
@@ -303,30 +306,28 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
             heap->head = heapUnion(heap, temp);
             free(temp);
             cpuProcess = NULL;
-            quantumTimer = 0;
+            timeInCpu = 0;
         }
 
-        // 4. CPU'ya Süreç Al
         if (cpuProcess == NULL && heap->head != NULL) {
             cpuProcess = heapDeleteMin(heap);
-            quantumTimer = 0;
+            timeInCpu = 0;
         }
         
-        // 4. EKRANA YAZDIRMA MANTIGI (Istedigin T=5 Düzenlemesi)
         if (printTable) {
                       
             if (cpuProcess == NULL) {
             	printf("%-10d ", currentTime);
                 printf("%-25s %-30s\n", "-", "-");
-            } //<= olunca p1 is process olur dedim ama q=1 no ?
-            else if (quantumTimer > 0 && quantumTimer < q) {
-                //I chosed to blank here because process in the cpu will continue no print in the output.
+            }
+            else if (timeInCpu > 0 && timeInCpu < q) {
+                //I chosed to blank here because process in the cpu will continue , no print in the output.
             } 
             else {
             	printf("%-10d ", currentTime);
-                // KARAR ANI VEYA BASLANGIÇ: Tam tabloyu yazdir
+                
                 int len = 0;
-                // Mevcut çalisan ve heap'tekiler
+                
                 len += printf("P%d ", cpuProcess->processId);
                 len += printHeapProcesses(heap->head, 0);
 
@@ -334,24 +335,23 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
                 if (space < 0) space = 0;
                 printf("%*s", space, "");
 
-                // Priority Degerleri
                 printf("P%d: %.3f ", cpuProcess->processId, cpuProcess->priorityValue);
                 printHeapProcesses(heap->head, 1);
                 printf("\n");
             }  
         }
-        // 5. Zaman Ilerlemesi
+        
         if (cpuProcess != NULL) {
             updateWaitingTimes(heap->head);
             cpuProcess->newExecutionTime--;
-            quantumTimer++;
+            timeInCpu++;
             
             if (cpuProcess->newExecutionTime == 0) {
                 totalWaitTime += cpuProcess->totalWaitingTime;
                 completedCount++;
                 free(cpuProcess);
                 cpuProcess = NULL;
-                quantumTimer = 0;
+                timeInCpu = 0;
             }
         }
         currentTime++;
@@ -367,30 +367,59 @@ double runSimulation(int q, int totalProcesses, int IDs[], int arrivalTime[], in
     free(heap);
     return awt;
 }
-
 int main(void) {
-    int IDs[] = {1, 2, 3,4,5,6};
-    int arrivalTime[] = {0, 2, 3,5,6,7};
-    int initial_et[] = {3, 1,2,2,2,4};
-    int totalProcesses = 6;
-    int e_max = 4;
+    
+    int IDs[20];
+    int arrivalTime[20];
+    int initial_et[20];
+    int totalProcesses = 0;
+    int e_max = 0;
 
-    double minAWT = 10000, currentAWT;
+    FILE *fp = fopen("input.txt", "r");
+    if (fp == NULL) {
+        printf("input.txt can't open'\n");
+        return 1;
+    }
+    char idStr[5];
+    int et, arr;
+    
+    while (fscanf(fp, "%s %d %d", idStr, &et, &arr) == 3) {
+        
+        int idVal = 0;
+        if (idStr[0] == 'P' || idStr[0] == 'p') {
+            idVal = atoi(&idStr[1]);
+        } else {
+            idVal = atoi(idStr);
+        }
+
+        IDs[totalProcesses] = idVal;
+        initial_et[totalProcesses] = et;
+        arrivalTime[totalProcesses] = arr;
+
+        
+        if (et > e_max) {
+            e_max = et;
+        }
+
+        totalProcesses++;
+               
+        if (totalProcesses >= 20) break;
+    }
+    fclose(fp);
+
+    double minAWT = 100;
+	double currentAWT;
     int bestQ = 1;
     int q;
-    // q=1'den q=5'e kadar tablolu, sonrasinda sadece sonuç odakli
+    
     for (q= 1; q <= 5; q++) {
         int showTable = (q <= 5); 
-        currentAWT = runSimulation(q, totalProcesses, IDs, arrivalTime, initial_et, e_max, showTable);
+        currentAWT = DifferentQAnalysis(q, totalProcesses, IDs, arrivalTime, initial_et, e_max, showTable);
         if (currentAWT < minAWT) {
             minAWT = currentAWT;
             bestQ = q;
         }
     }
-
-    printf("\n**************************************************\n");
-    printf("OPTIMIZATION COMPLETE: Best Quantum q = %d (AWT = %.2f)\n", bestQ, minAWT);
-    printf("**************************************************\n");
-
+    printf("Min Average Waiting Time is %.2f and q = %d \n",minAWT,bestQ);
     return 0;
 }
